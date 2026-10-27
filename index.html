@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>シフト給料計算アプリ</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f7f9;--card:#fff;--text:#1d2530;--sub:#6b7686;--line:#e3e7ed;--accent:#2f6fed;--soft:#e6eefc;--neg:#c2410c;--pos:#15803d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#12151a;--card:#1b2028;--text:#e8ecf2;--sub:#98a2b3;--line:#2b323d;--accent:#6ea0ff;--soft:#22314d;--neg:#fb923c;--pos:#4ade80}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#12151a;--card:#1b2028;--text:#e8ecf2;--sub:#98a2b3;--line:#2b323d;--accent:#6ea0ff;--soft:#22314d;--neg:#fb923c;--pos:#4ade80}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.6}
+main{max-width:600px;margin:0 auto;padding:20px 12px 40px}
+h1{font-size:1.3rem;margin:0 0 4px}h2{font-size:1rem;margin:0 0 10px}
+.sub,.note{color:var(--sub);font-size:.82rem}.sub{margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:.82rem;color:var(--sub);margin:8px 0 3px}
+input,textarea,button{font:inherit;color:var(--text)}
+input[type=number],input[type=time],input[type=text],textarea{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+textarea{min-height:60px}
+button{padding:8px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer}
+button.p{background:var(--accent);border-color:var(--accent);color:#fff}
+button.x{padding:6px 10px;color:var(--neg)}
+button:disabled{opacity:.5}
+.grid{display:grid;gap:8px;align-items:end;grid-template-columns:1fr 1fr 1fr auto}
+.nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.nav b{font-size:1.05rem}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wd{text-align:center;font-size:.72rem;color:var(--sub)}
+.day{min-height:64px;padding:4px;border-radius:8px;text-align:left;display:flex;flex-direction:column;gap:1px;overflow:hidden;background:var(--bg)}
+.day.blank{visibility:hidden}
+.day.has{background:var(--soft)}
+.day.today .dn{color:var(--accent);font-weight:700}
+.day.sel{outline:2px solid var(--accent)}
+.dn{font-size:.78rem}.dn.red{color:var(--neg)}.dn.blue{color:var(--accent)}.t{font-size:.62rem;color:var(--sub);white-space:nowrap}.t.pay{color:var(--pos)}
+.big{text-align:center}.big .n{font-size:1.7rem;font-weight:700;color:var(--pos)}.big .l{color:var(--sub);font-size:.85rem}
+.cols{display:flex;justify-content:space-around;gap:8px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+td{padding:6px 0;border-bottom:1px solid var(--line)}td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+tr.m td{color:var(--neg)}tr.t td{font-weight:700;border-bottom:none}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.chk{display:flex;align-items:center;gap:8px;font-size:.92rem;color:var(--text)}
+details summary{cursor:pointer;color:var(--accent);font-size:.9rem}
+#st{font-size:.85rem;margin-top:8px}
+main{display:flex;flex-direction:column}
+#settings{order:10}
+.big{order:1;position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.18)}
+.big .n{font-size:1.2rem}.big .l{font-size:.72rem}
+#editor{scroll-margin-bottom:110px}
+.sum{cursor:pointer;font-weight:600;font-size:1rem;color:var(--text)}
+details.card[open] .sum{margin-bottom:10px}
+button{min-height:40px}
+input[type=number],input[type=time],input[type=text]{min-height:42px}
+.day{min-height:60px}
+@media(max-width:430px){.grid{grid-template-columns:1fr 1fr 1fr}.grid .x{grid-column:1/-1}main{padding:16px 8px 40px}.card{padding:12px}}
+</style>
+</head>
+<body>
+<main>
+<h1>シフト給料計算アプリ</h1>
+<p class="sub">カレンダーの日付をタップしてシフトを入力すると、給料を自動計算します</p>
+
+<details class="card" id="settings">
+  <summary class="sum">⚙ 設定(時給・割増・交通費)</summary>
+  <label>基本時給(円)</label>
+  <input type="number" id="base" value="1500" inputmode="numeric">
+  <label style="margin-top:14px">時間帯ごとの時給(基本時給より優先)</label>
+  <div id="bands"></div>
+  <div class="row"><button id="addBand">＋ 時間帯を追加</button></div>
+  <p class="note">例:22:00〜05:00 を 1875円(深夜割増)。日をまたぐ時間帯もOKです。</p>
+  <label style="margin-top:14px">曜日・祝日の割増(時給に上乗せする金額・円)</label>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
+    <div><label>土曜</label><input type="number" id="p_sat" value="0" inputmode="numeric"></div>
+    <div><label>日曜</label><input type="number" id="p_sun" value="0" inputmode="numeric"></div>
+    <div><label>祝日</label><input type="number" id="p_hol" value="0" inputmode="numeric"></div>
+  </div>
+  <p class="note">祝日は自動で判定します(振替休日も対応)。シフトの開始日の曜日で判定します。</p>
+  <label style="margin-top:14px">交通費(出勤1日あたり・円)</label>
+  <input type="number" id="fare" value="0" inputmode="numeric">
+  <div class="row"><button class="x" id="clearM">この月のシフトを全て削除</button></div>
+</details>
+
+<div class="card">
+  <h2>シフトカレンダー</h2>
+  <div class="nav"><button id="prev">‹ 前月</button><b id="ym"></b><button id="today">今日</button><button id="next">翌月 ›</button></div>
+  <div class="cal" id="wd"></div>
+  <div class="cal" id="cal" style="margin-top:4px"></div>
+  <p class="note">空いている日をタップすると、前回と同じシフトが入ります。入った日をタップすると下で編集できます。左右にスワイプすると月を切り替えられます。時給は一番下の「⚙ 設定」で変更できます。</p>
+</div>
+
+<div class="card" id="editor"></div>
+
+<div class="card">
+  <details id="ai" hidden>
+    <summary>写真・文章からシフトを読み取る</summary>
+    <div id="photoBox"><label>シフト表の写真(任意)</label><input type="file" id="photo" accept="image/*"></div>
+    <label>文章で入力(任意)例:「10/3 9-17:30 休憩1時間」</label>
+    <textarea id="txt"></textarea>
+    <label>自分の名前(表に複数人いる場合)</label>
+    <input type="text" id="who" placeholder="例:田中">
+    <div class="row"><button class="p" id="read">読み取ってカレンダーに追加</button></div>
+    <div id="st" class="note"></div>
+  </details>
+</div>
+
+<div class="card big">
+  <div class="l" id="mlabel"></div>
+  <div class="cols">
+    <div><div class="l">出勤日数</div><div class="n" id="td">-</div></div>
+    <div><div class="l">合計時間</div><div class="n" id="th">-</div></div>
+    <div><div class="l">支給合計</div><div class="n" id="tp">-</div></div>
+  </div>
+  <div class="note" id="brk" style="margin-top:8px"></div>
+</div>
+
+</main>
+<script>
+const $=id=>document.getElementById(id),v=id=>parseFloat($(id).value)||0;
+const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
+const pad=n=>String(n).padStart(2,"0"),keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+const WD=["日","月","火","水","木","金","土"],ISO=/^\d{4}-\d\d-\d\d$/;
+let bands=[{s:"22:00",e:"05:00",r:1875}],shifts=[],last={s:"09:00",e:"17:00",b:60},sel=null,flags={};
+const now=new Date();let view={y:now.getFullYear(),m:now.getMonth()};
+try{const j=JSON.parse(localStorage.getItem("shiftcalc2")||"null");if(j){bands=j.bands||bands;shifts=(j.shifts||[]).filter(x=>ISO.test(x.d));last=j.last||last;$("base").value=j.base||1500;for(const k of ["p_sat","p_sun","p_hol","fare"])if(j[k]!=null)$(k).value=j[k];flags=j.flags||{}}}catch(e){}
+const save=()=>{try{localStorage.setItem("shiftcalc2",JSON.stringify({bands,shifts,last,flags,base:v("base"),p_sat:v("p_sat"),p_sun:v("p_sun"),p_hol:v("p_hol"),fare:v("fare")}))}catch(e){}};
+const tm=s=>{const [h,m]=(s||"0:0").split(":").map(Number);return(h||0)*60+(m||0)};
+
+const holCache={};
+function hols(y){
+  if(holCache[y])return holCache[y];
+  const s=new Set(),add=(m,d)=>s.add(keyOf(y,m-1,d)),yy=y-1980,lp=Math.floor(yy/4),K=t=>keyOf(t.getFullYear(),t.getMonth(),t.getDate());
+  [[1,1],[2,11],[2,23],[4,29],[5,3],[5,4],[5,5],[8,11],[11,3],[11,23]].forEach(a=>add(...a));
+  const mon=(m,n)=>1+(8-new Date(y,m-1,1).getDay())%7+(n-1)*7;
+  add(1,mon(1,2));add(7,mon(7,3));add(9,mon(9,3));add(10,mon(10,2));
+  add(3,Math.floor(20.8431+0.242194*yy-lp));add(9,Math.floor(23.2488+0.242194*yy-lp));
+  [...s].sort().forEach(k=>{const [a,b,c]=k.split("-").map(Number),t=new Date(a,b-1,c);
+    if(t.getDay()===0){do{t.setDate(t.getDate()+1)}while(s.has(K(t)));s.add(K(t))}});
+  for(let t=new Date(y,0,2);t.getFullYear()===y;t.setDate(t.getDate()+1)){
+    const p=new Date(t),n=new Date(t);p.setDate(p.getDate()-1);n.setDate(n.getDate()+1);
+    if(!s.has(K(t))&&t.getDay()!==0&&s.has(K(p))&&s.has(K(n)))s.add(K(t));
+  }
+  return holCache[y]=s;
+}
+function premium(k){const [y,m,d]=k.split("-").map(Number),w=new Date(y,m-1,d).getDay();
+  if(hols(y).has(k)||flags[k])return v("p_hol");if(w===0)return v("p_sun");if(w===6)return v("p_sat");return 0}
+function dayCls(k){const [y,m,d]=k.split("-").map(Number),w=new Date(y,m-1,d).getDay();return hols(y).has(k)||w===0?"red":w===6?"blue":""}
+function rateAt(m,pr){
+  for(const b of bands){
+    if(!b.s||!b.e||!b.r)continue;
+    const s=tm(b.s);let e=tm(b.e);if(e<=s)e+=1440;
+    if((m>=s&&m<e)||(m+1440>=s&&m+1440<e))return+b.r+pr;
+  }
+  return v("base")+pr;
+}
+function calcShift(x){
+  if(!x.s||!x.e)return{h:0,p:0};
+  const s=tm(x.s);let e=tm(x.e);if(e<=s)e+=1440;
+  const pr=premium(x.d);let sum=0;for(let i=s;i<e;i++)sum+=rateAt(i%1440,pr)/60;
+  const w=e-s,b=Math.min(+x.b||0,w);
+  return{h:(w-b)/60,p:w?sum*(w-b)/w:0};
+}
+const short=t=>{const [h,m]=t.split(":").map(Number);return m?`${h}:${pad(m)}`:`${h}`};
+const inMonth=x=>x.d.startsWith(`${view.y}-${pad(view.m+1)}-`);
+
+function renderBands(){
+  $("bands").innerHTML=bands.map((b,i)=>`<div class="grid" style="margin-bottom:6px">
+  <div><label>開始</label><input type="time" data-k="bands" data-i="${i}" data-f="s" value="${b.s}"></div>
+  <div><label>終了</label><input type="time" data-k="bands" data-i="${i}" data-f="e" value="${b.e}"></div>
+  <div><label>時給(円)</label><input type="number" data-k="bands" data-i="${i}" data-f="r" value="${b.r}"></div>
+  <button class="x" data-del="bands" data-i="${i}">削除</button></div>`).join("");
+}
+function renderCal(){
+  $("ym").textContent=`${view.y}年${view.m+1}月`;
+  $("wd").innerHTML=WD.map(w=>`<div class="wd">${w}</div>`).join("");
+  const first=new Date(view.y,view.m,1).getDay(),n=new Date(view.y,view.m+1,0).getDate();
+  const today=keyOf(now.getFullYear(),now.getMonth(),now.getDate());
+  let h='<span></span>'.repeat(first);
+  for(let d=1;d<=n;d++){
+    const k=keyOf(view.y,view.m,d),L=shifts.filter(x=>x.d===k);
+    let info="";
+    if(L.length){
+      const P=L.reduce((a,x)=>a+calcShift(x).p,0)+v("fare");
+      info=`<span class="t">${short(L[0].s)}–${short(L[0].e)}${L.length>1?` +${L.length-1}`:""}</span><span class="t pay">${P>=10000?(P/10000).toFixed(1)+"万":yen(P)}</span>`;
+    }
+    h+=`<button class="day${L.length?" has":""}${k===today?" today":""}${k===sel?" sel":""}" data-day="${k}"><span class="dn ${dayCls(k)}">${d}</span>${info}</button>`;
+  }
+  $("cal").innerHTML=h;
+}
+function renderEditor(){
+  if(!sel){$("editor").innerHTML='<p class="note" style="margin:0">カレンダーの日付をタップすると、ここでシフトを編集できます。</p>';return}
+  const [y,m,d]=sel.split("-").map(Number),dow=WD[new Date(y,m-1,d).getDay()];
+  const rows=shifts.map((x,i)=>x.d===sel?`<div class="grid" style="margin-bottom:6px">
+  <div><label>開始</label><input type="time" data-k="shifts" data-i="${i}" data-f="s" value="${x.s}"></div>
+  <div><label>終了</label><input type="time" data-k="shifts" data-i="${i}" data-f="e" value="${x.e}"></div>
+  <div><label>休憩(分)</label><input type="number" data-k="shifts" data-i="${i}" data-f="b" value="${x.b||0}"></div>
+  <button class="x" data-del="shifts" data-i="${i}">削除</button>
+  <div class="note" style="grid-column:1/-1" id="line${i}"></div></div>`:"").join("");
+  $("editor").innerHTML=`<h2>${m}月${d}日(${dow})のシフト${hols(y).has(sel)?" ・祝日":""}</h2>${rows||'<p class="note">シフトはありません。</p>'}<label class="chk" style="margin-top:10px"><input type="checkbox" id="flag" ${flags[sel]?"checked":""}> この日を祝日扱いにする(祝日割増を適用)</label>${premium(sel)?`<p class="note">この日は時給に +${yen(premium(sel))} が加算されます。</p>`:""}<div class="row"><button id="addOne">＋ シフトを追加</button></div>`;
+  $("addOne").onclick=()=>{shifts.push({d:sel,...last});refresh(true)};
+  $("flag").onchange=e=>{if(e.target.checked)flags[sel]=true;else delete flags[sel];refresh(true)};
+}
+function lines(){shifts.forEach((x,i)=>{const l=$("line"+i);if(l){const c=calcShift(x);l.textContent=`${c.h.toFixed(2)}時間 ／ ${yen(c.p)}`}})}
+function totals(){
+  const L=shifts.filter(inMonth);let H=0,P=0;L.forEach(x=>{const c=calcShift(x);H+=c.h;P+=c.p});
+  $("mlabel").textContent=`${view.y}年${view.m+1}月の合計`;
+  const D=new Set(L.map(x=>x.d)).size,F=D*v("fare");$("td").textContent=D+"日";$("th").textContent=H.toFixed(1)+"h";$("tp").textContent=yen(P+F);$("brk").textContent=`給料 ${yen(P)} ＋ 交通費 ${yen(F)}`;
+  lines();save();
+}
+function refresh(editor){renderCal();if(editor)renderEditor();totals()}
+
+document.addEventListener("input",e=>{
+  const t=e.target,k=t.dataset.k;
+  if(k){const o=(k==="bands"?bands:shifts)[+t.dataset.i],f=t.dataset.f;
+    o[f]=t.type==="number"?(parseFloat(t.value)||0):t.value;
+    if(k==="shifts"&&o.s&&o.e)last={s:o.s,e:o.e,b:+o.b||0};}
+  renderCal();totals();
+});
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.del){
+    (b.dataset.del==="bands"?bands:shifts).splice(+b.dataset.i,1);
+    b.dataset.del==="bands"?renderBands():renderEditor();refresh(false);
+  }else if(b.dataset.day){
+    const k=b.dataset.day;
+    if(!shifts.some(x=>x.d===k))shifts.push({d:k,...last});
+    sel=k;refresh(true);$("editor").scrollIntoView({behavior:"smooth",block:"nearest"});
+  }
+});
+$("addBand").onclick=()=>{bands.push({s:"18:00",e:"22:00",r:1650});renderBands();totals()};
+const go=n=>{view=new Date(view.y,view.m+n,1);view={y:view.getFullYear(),m:view.getMonth()};sel=null;refresh(true)};
+$("prev").onclick=()=>go(-1);$("next").onclick=()=>go(1);
+$("today").onclick=()=>{view={y:now.getFullYear(),m:now.getMonth()};sel=null;refresh(true)};
+let tx=null;
+$("cal").addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{passive:true});
+$("cal").addEventListener("touchend",e=>{if(tx==null)return;const dx=e.changedTouches[0].clientX-tx;tx=null;if(Math.abs(dx)>60)go(dx<0?1:-1)},{passive:true});
+let armed=false;
+$("clearM").onclick=()=>{
+  if(!armed){armed=true;$("clearM").textContent="もう一度押すと削除します";setTimeout(()=>{armed=false;$("clearM").textContent="この月のシフトを全て削除"},3000);return}
+  shifts=shifts.filter(x=>!inMonth(x));armed=false;$("clearM").textContent="この月のシフトを全て削除";sel=null;refresh(true);
+};
+
+/* 写真・文章からの読み取り(Claude) */
+let sample=null,canImg=false;
+(async()=>{
+  try{
+    sample=await claude.use("sample");if(!sample)return;
+    try{canImg=!!(await sample.limits())?.images}catch(e){}
+    $("ai").hidden=false;if(!canImg)$("photoBox").hidden=true;
+  }catch(e){}
+})();
+async function shrink(file){
+  const url=URL.createObjectURL(file),img=new Image();
+  await new Promise((ok,ng)=>{img.onload=ok;img.onerror=ng;img.src=url});
+  const k=Math.min(1,1600/Math.max(img.width,img.height)),cv=document.createElement("canvas");
+  cv.width=img.width*k;cv.height=img.height*k;cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+  URL.revokeObjectURL(url);
+  return new Promise(ok=>cv.toBlob(ok,"image/jpeg",.85));
+}
+$("read").onclick=async()=>{
+  const f=$("photo").files[0],t=$("txt").value.trim(),who=$("who").value.trim(),st=$("st");
+  if(!f&&!t){st.textContent="写真か文章を入力してください。";return}
+  $("read").disabled=true;st.textContent="読み取り中...";
+  try{
+    const prompt=`シフトの情報を読み取り、JSON配列だけを返してください(説明やコードブロックは不要)。
+形式: [{"date":"YYYY-MM-DD","start":"HH:MM","end":"HH:MM","break":休憩の分数}]
+ルール: 24時間表記。日をまたぐ場合もendはそのまま(例 22:00〜翌5:00 は end "05:00")。休憩が不明なら0。今日は${keyOf(now.getFullYear(),now.getMonth(),now.getDate())}で、年が書かれていなければ表示中の${view.y}年${view.m+1}月を基準に補う。${who?`複数人分の表なら「${who}」さんの分だけ。`:""}読み取れない行は含めない。${t?"\n\n入力文:\n"+t:""}`;
+    const opts={};if(f&&canImg)opts.images=[await shrink(f)];
+    const arr=await sample.json(prompt,opts);
+    const list=(Array.isArray(arr)?arr:[]).filter(x=>x&&ISO.test(x.date||"")&&x.start&&x.end);
+    if(!list.length){st.textContent="シフトを読み取れませんでした。";return}
+    list.forEach(x=>{if(!shifts.some(s=>s.d===x.date&&s.s===x.start&&s.e===x.end))shifts.push({d:x.date,s:x.start,e:x.end,b:+x.break||0})});
+    const [yy,mm]=list[0].date.split("-").map(Number);view={y:yy,m:mm-1};sel=null;
+    refresh(true);
+    st.textContent=`${list.length}件をカレンダーに追加しました。内容を確認してください。`;
+  }catch(e){
+    st.textContent=e&&e.code==="not_granted"?"読み取りが許可されませんでした。":"読み取りに失敗しました。カレンダーへの手入力でも使えます。";
+  }finally{$("read").disabled=false}
+};
+$("base").addEventListener("input",()=>{renderCal();totals()});
+renderBands();renderEditor();refresh(false);
+</script>
+</body>
+</html>
