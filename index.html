@@ -160,6 +160,19 @@ label[for="goalAmount"]{font-size:1rem;font-weight:700;color:var(--text);text-al
 .planner-grid>div:last-child{display:flex;align-items:center;gap:10px}
 .planner-grid>div:last-child label{margin:0;white-space:nowrap}
 .planner-grid>div:last-child input{width:110px;flex:none;text-align:center}
+
+/* ===== 設定を見やすく＆スワイプのアニメーション (2026-10-27 その5) ===== */
+#settings{background:transparent;border:none;box-shadow:none;padding:0}
+#settings .set-group{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 14px;margin:0 0 12px;box-shadow:0 1px 3px rgba(20,35,60,.05)}
+#settings .set-group h3{font-size:1.02rem;font-weight:800;margin:0 0 8px;padding-left:9px;border-left:4px solid var(--accent)}
+#settings label{font-size:.92rem;font-weight:700;color:var(--text);margin:10px 0 4px}
+#settings input[type=number],#settings input[type=time]{font-size:1.05rem;min-height:50px;padding:10px 12px;border-radius:12px}
+#settings .note{font-size:.86rem;line-height:1.6}
+#bands .grid{background:var(--day);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px!important}
+#bands .grid label{margin-top:0}
+#addBand{width:100%;border:1.5px dashed var(--accent);color:var(--accent);font-weight:700;background:transparent;min-height:46px}
+#clearM{border:1.5px solid var(--neg);font-weight:700;min-height:46px}
+#cal{touch-action:pan-y;will-change:transform}
 </style>
 </head>
 <body>
@@ -409,9 +422,16 @@ $("addBand").onclick=()=>{bands.push({s:"18:00",e:"22:00",r:1650});renderBands()
 const go=n=>{view=new Date(view.y,view.m+n,1);view={y:view.getFullYear(),m:view.getMonth()};sel=null;refresh(true)};
 $("prev").onclick=()=>go(-1);$("next").onclick=()=>go(1);
 $("today").onclick=()=>{view={y:now.getFullYear(),m:now.getMonth()};sel=null;refresh(true)};
-let tx=null;
-$("cal").addEventListener("touchstart",e=>{tx=e.touches[0].clientX},{passive:true});
-$("cal").addEventListener("touchend",e=>{if(tx==null)return;const dx=e.changedTouches[0].clientX-tx;tx=null;if(Math.abs(dx)>60)go(dx<0?1:-1)},{passive:true});
+let tx=null,ty=null;
+const calEl=$("cal");
+calEl.addEventListener("touchstart",e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;calEl.style.transition="none"},{passive:true});
+calEl.addEventListener("touchmove",e=>{if(tx==null)return;const dx=e.touches[0].clientX-tx,dy=e.touches[0].clientY-ty;if(Math.abs(dy)>Math.abs(dx)||Math.abs(dx)<8)return;calEl.style.transform=`translateX(${dx*0.55}px)`;calEl.style.opacity=String(1-Math.min(Math.abs(dx)/700,0.22))},{passive:true});
+calEl.addEventListener("touchend",e=>{if(tx==null)return;const dx=e.changedTouches[0].clientX-tx;tx=null;ty=null;
+  if(Math.abs(dx)>60){const dir=dx<0?1:-1;calEl.style.transition="transform .16s ease-in,opacity .16s ease-in";calEl.style.transform=`translateX(${-dir*70}px)`;calEl.style.opacity="0";
+    setTimeout(()=>{go(dir);calEl.style.transition="none";calEl.style.transform=`translateX(${dir*70}px)`;calEl.style.opacity="0";
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{calEl.style.transition="transform .24s ease-out,opacity .24s ease-out";calEl.style.transform="";calEl.style.opacity=""}))},170);
+  }else{calEl.style.transition="transform .2s ease-out,opacity .2s ease-out";calEl.style.transform="";calEl.style.opacity=""}
+},{passive:true});
 let armed=false;
 $("clearM").onclick=()=>{
   if(!armed){armed=true;$("clearM").textContent="もう一度押すと削除します";setTimeout(()=>{armed=false;$("clearM").textContent="この月のシフトを全て削除"},3000);return}
