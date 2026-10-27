@@ -138,6 +138,18 @@ progress#goalProgress::-moz-progress-bar{background:var(--accent);border-radius:
 #brk{grid-area:brk;margin-top:0!important;font-size:.74rem;text-align:right;white-space:nowrap}
 body[data-screen="calendar"] main{padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 #editor{scroll-margin-bottom:170px}
+
+/* ===== 目標給料の分かりやすさ改善 (2026-10-27 その3) ===== */
+.goal-intro{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:.92rem;line-height:1.55;margin:0 0 12px}
+.goal-intro b{color:var(--accent)}
+.step{font-size:.95rem;font-weight:700;margin:14px 0 6px}
+.step:first-of-type{margin-top:2px}
+.mini{font-size:.78rem;margin-top:3px}
+.planner-stats{background:var(--day);border:1px solid var(--line);border-radius:12px;padding:6px 12px 10px;margin-top:6px}
+#goalCurrent{font-size:1.02rem;font-weight:700;margin:8px 0 2px}
+#goalPercent{font-weight:700}
+#goalStatus{font-size:1rem;margin:6px 0 2px}
+#goalEstimate{margin:2px 0 6px;font-weight:600}
 </style>
 </head>
 <body>
@@ -194,13 +206,16 @@ body[data-screen="calendar"] main{padding-bottom:calc(160px + env(safe-area-inse
 <section class="app-screen" id="goalScreen" hidden aria-label="目標給料">
 <div class="nav"><button id="goalPrev" aria-label="目標の前月">‹ 前月</button><b id="goalYM"></b><button id="goalNext" aria-label="目標の翌月">翌月 ›</button></div>
 <section class="card" id="planner" aria-labelledby="plannerTitle">
-<h2 id="plannerTitle">目標給料プランナー</h2>
+<h2 id="plannerTitle">今月の目標給料</h2>
+<p class="goal-intro">目標金額を入れるだけで、<b>あといくら足りないか</b>と<b>あと何日シフトに入れば届くか</b>が分かるよ。カレンダーに入れたシフトから自動で計算してる。</p>
 <p class="note" id="goalMonth"></p>
+<h3 class="step">① 目標を決める</h3>
 <div class="planner-grid">
 <div><label for="goalAmount">月間目標支給額（円）</label><input id="goalAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="例：100000"></div>
-<div><label for="goalDaily">1日の希望実働時間</label><input id="goalDaily" type="number" min="0.1" max="24" step="0.5" inputmode="decimal" value="5"></div>
+<div><label for="goalDaily">1日の希望実働時間</label><input id="goalDaily" type="number" min="0.1" max="24" step="0.5" inputmode="decimal" value="5"><p class="note mini">「あと何日入ればいいか」の計算に使うよ</p></div>
 </div>
 <p class="note">税金・控除前の支給額（交通費を含む）が目標です。月ごとに自動保存します。</p>
+<h3 class="step">② あとどれくらい？</h3>
 <div class="planner-stats" aria-live="polite">
 <p id="goalCurrent"></p>
 <label for="goalProgress" id="goalPercent">目標達成率</label>
