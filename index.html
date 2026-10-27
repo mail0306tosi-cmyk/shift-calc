@@ -55,6 +55,21 @@ input[type=number],input[type=time],input[type=text]{min-height:42px}
 .day{min-height:60px}
 @media(max-width:430px){.grid{grid-template-columns:1fr 1fr 1fr}.grid .x{grid-column:1/-1}main{padding:16px 8px 40px}.card{padding:12px}}
 .planner-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.planner-grid>div{min-width:0}#goalProgress{width:100%;height:16px;accent-color:var(--accent)}#goalStatus{font-weight:700;color:var(--pos)}.planner-stats{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}@media(max-width:360px){.planner-grid{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+:root{--nav-height:64px}
+main{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+body[data-screen="calendar"] main{padding-bottom:calc(220px + env(safe-area-inset-bottom,0px))}
+#settings{order:0}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:20;display:flex;justify-content:center;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -3px 16px rgba(0,0,0,.06)}
+.bottom-nav button{flex:1;max-width:208px;height:var(--nav-height);border:0;border-radius:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:.78rem;color:var(--sub);background:transparent}
+.bottom-nav button span{font-size:1.4rem;line-height:1.3}
+.bottom-nav button[aria-current="page"]{color:var(--accent);background:var(--soft);font-weight:700}
+.bottom-nav button:focus-visible{outline:2px solid var(--accent);outline-offset:-4px}
+#salarySummary{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav-height) + 8px + env(safe-area-inset-bottom,0px));width:calc(100% - 24px);max-width:600px;box-sizing:border-box;margin:0;z-index:10}
+#editor{scroll-margin-bottom:230px}
+.nav{gap:4px;flex-wrap:wrap}.nav button{padding:8px}
+#goalScreen{min-width:0}
+@media(max-width:430px){input[type=number],input[type=time],input[type=text]{font-size:16px}.big .n{font-size:1.1rem}}
 </style>
 </head>
 <body>
@@ -62,8 +77,8 @@ input[type=number],input[type=time],input[type=text]{min-height:42px}
 <h1>シフト給料計算アプリ</h1>
 <p class="sub">カレンダーの日付をタップしてシフトを入力すると、給料を自動計算します</p>
 
-<details class="card" id="settings">
-  <summary class="sum">⚙ 設定(時給・割増・交通費)</summary>
+<section class="card app-screen" id="settings" hidden aria-labelledby="settingsTitle">
+  <h2 id="settingsTitle">設定</h2>
   <label>基本時給(円)</label>
   <input type="number" id="base" value="1500" inputmode="numeric">
   <label style="margin-top:14px">時間帯ごとの時給(基本時給より優先)</label>
@@ -79,18 +94,23 @@ input[type=number],input[type=time],input[type=text]{min-height:42px}
   <p class="note">祝日は自動で判定します(振替休日も対応)。シフトの開始日の曜日で判定します。</p>
   <label style="margin-top:14px">交通費(出勤1日あたり・円)</label>
   <input type="number" id="fare" value="0" inputmode="numeric">
+  <h2 style="margin-top:24px">データ管理</h2><p class="note" id="manageMonth"></p><p class="note">シフト・設定・月別目標はこのブラウザーに自動保存されます。</p>
   <div class="row"><button class="x" id="clearM">この月のシフトを全て削除</button></div>
-</details>
+</section>
 
+<section class="app-screen" id="calendarScreen" aria-label="カレンダー">
 <div class="card">
   <h2>シフトカレンダー</h2>
   <div class="nav"><button id="prev">‹ 前月</button><b id="ym"></b><button id="today">今日</button><button id="next">翌月 ›</button></div>
   <div class="cal" id="wd"></div>
   <div class="cal" id="cal" style="margin-top:4px"></div>
-  <p class="note">空いている日をタップすると、前回と同じシフトが入ります。入った日をタップすると下で編集できます。左右にスワイプすると月を切り替えられます。時給は一番下の「⚙ 設定」で変更できます。</p>
+  <p class="note">空いている日をタップすると、前回と同じシフトが入ります。入った日をタップすると下で編集できます。左右にスワイプすると月を切り替えられます。時給は下のナビゲーションの「設定」で変更できます。</p>
 </div>
 
 <div class="card" id="editor"></div>
+</section>
+<section class="app-screen" id="goalScreen" hidden aria-label="目標給料">
+<div class="nav"><button id="goalPrev" aria-label="目標の前月">‹ 前月</button><b id="goalYM"></b><button id="goalNext" aria-label="目標の翌月">翌月 ›</button></div>
 <section class="card" id="planner" aria-labelledby="plannerTitle">
 <h2 id="plannerTitle">目標給料プランナー</h2>
 <p class="note" id="goalMonth"></p>
@@ -107,9 +127,9 @@ input[type=number],input[type=time],input[type=text]{min-height:42px}
 <p id="goalEstimate"></p>
 </div>
 <p class="note">追加勤務の逆算は基本時給のみを使った概算です。交通費・深夜・土日祝の割増は含みません。実働時間に休憩は含みません。</p>
-</section>
+</section></section>
 
-<div class="card">
+<div class="card app-screen" id="aiScreen">
   <details id="ai" hidden>
     <summary>写真・文章からシフトを読み取る</summary>
     <div id="photoBox"><label>シフト表の写真(任意)</label><input type="file" id="photo" accept="image/*"></div>
@@ -122,7 +142,7 @@ input[type=number],input[type=time],input[type=text]{min-height:42px}
   </details>
 </div>
 
-<div class="card big">
+<div class="card big app-screen" id="salarySummary">
   <div class="l" id="mlabel"></div>
   <div class="cols">
     <div><div class="l">出勤日数</div><div class="n" id="td">-</div></div>
@@ -133,6 +153,11 @@ input[type=number],input[type=time],input[type=text]{min-height:42px}
 </div>
 
 </main>
+<nav class="bottom-nav" aria-label="メインナビゲーション">
+<button type="button" data-screen="calendar" aria-controls="calendarScreen" aria-current="page"><span aria-hidden="true">▦</span>カレンダー</button>
+<button type="button" data-screen="goal" aria-controls="goalScreen"><span aria-hidden="true">◎</span>目標給料</button>
+<button type="button" data-screen="settings" aria-controls="settings"><span aria-hidden="true">⚙</span>設定</button>
+</nav>
 <script>
 const $=id=>document.getElementById(id),v=id=>parseFloat($(id).value)||0;
 const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
@@ -251,6 +276,8 @@ function renderEditor(){
 function lines(){shifts.forEach((x,i)=>{const l=$("line"+i);if(l){const c=calcShift(x);l.textContent=`${c.h.toFixed(2)}時間 ／ ${yen(c.p)}`}})}
 function totals(){
   const L=shifts.filter(inMonth);let H=0,P=0;L.forEach(x=>{const c=calcShift(x);H+=c.h;P+=c.p});
+  $("goalYM").textContent=`${view.y}年${view.m+1}月`;
+  $("manageMonth").textContent=`削除対象：${view.y}年${view.m+1}月（カレンダー・目標給料で月を変更できます）`;
   $("mlabel").textContent=`${view.y}年${view.m+1}月の合計`;
   const D=new Set(L.map(x=>x.d)).size,F=D*v("fare");$("td").textContent=D+"日";$("th").textContent=H.toFixed(1)+"h";$("tp").textContent=yen(P+F);$("brk").textContent=`給料 ${yen(P)} ＋ 交通費 ${yen(F)}`;
   renderPlanner(P+F);lines();save();
@@ -327,7 +354,24 @@ $("read").onclick=async()=>{
   }finally{$("read").disabled=false}
 };
 $("base").addEventListener("input",()=>{renderCal();totals()});
-renderBands();renderEditor();refresh(false);
+function switchScreen(screen){
+  if(!["calendar","goal","settings"].includes(screen))return;
+  document.body.dataset.screen=screen;
+  $("calendarScreen").hidden=screen!=="calendar";
+  $("salarySummary").hidden=screen!=="calendar";
+  $("aiScreen").hidden=screen!=="calendar"||$("ai").hidden;
+  $("goalScreen").hidden=screen!=="goal";
+  $("settings").hidden=screen!=="settings";
+  document.querySelectorAll("[data-screen]").forEach(button=>{
+    if(button.tagName!=="BUTTON")return;
+    if(button.dataset.screen===screen)button.setAttribute("aria-current","page");
+    else button.removeAttribute("aria-current");
+  });
+  window.scrollTo({top:0,behavior:"instant"});
+}
+document.querySelectorAll(".bottom-nav button").forEach(button=>button.addEventListener("click",()=>switchScreen(button.dataset.screen)));
+$("goalPrev").onclick=()=>go(-1);$("goalNext").onclick=()=>go(1);
+renderBands();renderEditor();refresh(false);switchScreen("calendar");
 </script>
 </body>
 </html>
