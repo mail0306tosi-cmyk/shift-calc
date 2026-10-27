@@ -220,6 +220,11 @@ label[for="goalAmount"]{font-size:1rem;font-weight:700;color:var(--text);text-al
   <input type="number" id="fare" value="0" inputmode="numeric">
   </div>
   <div class="set-group">
+  <h3>まかない</h3>
+  <label>まかない代(出勤1回あたり・給料から引く金額・円)</label>
+  <input type="number" id="meal" value="0" inputmode="numeric">
+  </div>
+  <div class="set-group">
   <h3>データ管理</h3><p class="note" id="manageMonth"></p><p class="note">シフト・設定・月別目標はこのブラウザーに自動保存されます。</p>
   <div class="row"><button class="x" id="clearM">この月のシフトを全て削除</button></div>
   </div>
@@ -291,8 +296,8 @@ const pad=n=>String(n).padStart(2,"0"),keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)
 const WD=["日","月","火","水","木","金","土"],ISO=/^\d{4}-\d\d-\d\d$/;
 let bands=[{s:"22:00",e:"05:00",r:1875}],shifts=[],last={s:"09:00",e:"17:00",b:60},sel=null,flags={};
 const now=new Date();let view={y:now.getFullYear(),m:now.getMonth()};
-try{const j=JSON.parse(localStorage.getItem("shiftcalc2")||"null");if(j){bands=j.bands||bands;shifts=(j.shifts||[]).filter(x=>ISO.test(x.d));last=j.last||last;$("base").value=j.base||1500;for(const k of ["p_sat","p_sun","p_hol","fare"])if(j[k]!=null)$(k).value=j[k];flags=j.flags||{}}}catch(e){}
-const save=()=>{try{localStorage.setItem("shiftcalc2",JSON.stringify({bands,shifts,last,flags,base:v("base"),p_sat:v("p_sat"),p_sun:v("p_sun"),p_hol:v("p_hol"),fare:v("fare")}))}catch(e){}};
+try{const j=JSON.parse(localStorage.getItem("shiftcalc2")||"null");if(j){bands=j.bands||bands;shifts=(j.shifts||[]).filter(x=>ISO.test(x.d));last=j.last||last;$("base").value=j.base||1500;for(const k of ["p_sat","p_sun","p_hol","fare","meal"])if(j[k]!=null)$(k).value=j[k];flags=j.flags||{}}}catch(e){}
+const save=()=>{try{localStorage.setItem("shiftcalc2",JSON.stringify({bands,shifts,last,flags,base:v("base"),p_sat:v("p_sat"),p_sun:v("p_sun"),p_hol:v("p_hol"),fare:v("fare"),meal:v("meal")}))}catch(e){}};
 let goals={};
 try{const j=JSON.parse(localStorage.getItem("shiftcalcGoals1")||"{}");if(j&&typeof j==="object"&&!Array.isArray(j))goals=j}catch(e){}
 const goalKey=()=>`${view.y}-${pad(view.m+1)}`;
@@ -403,22 +408,22 @@ function lines(){shifts.forEach((x,i)=>{const l=$("line"+i);if(l){const c=calcSh
 function renderChart(){
   const el=$("chart");if(!el)return;
   const months=[];for(let i=5;i>=0;i--){const d=new Date(view.y,view.m-i,1);months.push({y:d.getFullYear(),m:d.getMonth()})}
-  const vals=months.map(({y,m})=>{const pre=`${y}-${pad(m+1)}-`,L=shifts.filter(x=>x.d.startsWith(pre));let P=0;L.forEach(x=>P+=calcShift(x).p);return P+new Set(L.map(x=>x.d)).size*v("fare")});
+  const vals=months.map(({y,m})=>{const pre=`${y}-${pad(m+1)}-`,L=shifts.filter(x=>x.d.startsWith(pre));let P=0;L.forEach(x=>P+=calcShift(x).p);const D=new Set(L.map(x=>x.d)).size;return P+D*v("fare")-D*v("meal")});
   if(vals.every(v=>v===0)){el.innerHTML='<p class="nodata">シフトを入れると、ここに過去6か月の給料の流れが出るよ</p>';$("chartNote").textContent="";return}
   const W=320,H=118,pl=16,pr=16,pt=20,pb=22,M=Math.max(...vals);
   const X=i=>pl+(W-pl-pr)*i/5,Y=v=>pt+(H-pt-pb)*(1-v/M);
   const pts=vals.map((v,i)=>`${X(i)},${Y(v)}`).join(" ");
   const fmt=v=>v>=10000?(Math.round(v/1000)/10)+"万":"¥"+Math.round(v).toLocaleString("ja-JP");
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="過去6か月の支給合計の折れ線グラフ"><polygon points="${pl},${H-pb} ${pts} ${W-pr},${H-pb}" fill="var(--accent)" opacity=".12"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${vals.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v)}" r="${i===5?4:3}" fill="var(--accent)"/><text class="val" x="${X(i)}" y="${Y(v)-8}" text-anchor="middle">${fmt(v)}</text><text x="${X(i)}" y="${H-6}" text-anchor="middle">${months[i].m+1}月</text>`).join("")}</svg>`;
-  $("chartNote").textContent=`${months[0].y}年${months[0].m+1}月〜${months[5].y}年${months[5].m+1}月の支給合計（給料＋交通費）`;
+  $("chartNote").textContent=`${months[0].y}年${months[0].m+1}月〜${months[5].y}年${months[5].m+1}月の支給合計`;
 }
 function totals(){
   const L=shifts.filter(inMonth);let H=0,P=0;L.forEach(x=>{const c=calcShift(x);H+=c.h;P+=c.p});
   $("goalYM").textContent=`${view.y}年${view.m+1}月`;
   $("manageMonth").textContent=`削除対象：${view.y}年${view.m+1}月（カレンダー・目標給料で月を変更できます）`;
   $("mlabel").textContent=`${view.y}年${view.m+1}月の合計`;
-  const D=new Set(L.map(x=>x.d)).size,F=D*v("fare");$("td").textContent=D+"日";$("th").textContent=H.toFixed(1)+"h";$("tp").textContent=yen(P+F);$("brk").textContent=`給料 ${yen(P)} ＋ 交通費 ${yen(F)}`;
-  renderPlanner(P+F);renderChart();lines();save();
+  const D=new Set(L.map(x=>x.d)).size,F=D*v("fare"),M=D*v("meal");$("td").textContent=D+"日";$("th").textContent=H.toFixed(1)+"h";$("tp").textContent=yen(P+F-M);$("brk").textContent=`給料 ${yen(P)} ＋ 交通費 ${yen(F)}`+(M>0?` － まかない ${yen(M)}`:"");
+  renderPlanner(P+F-M);renderChart();lines();save();
 }
 function refresh(editor){renderCal();if(editor)renderEditor();totals()}
 
