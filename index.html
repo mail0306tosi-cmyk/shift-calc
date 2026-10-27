@@ -173,6 +173,12 @@ label[for="goalAmount"]{font-size:1rem;font-weight:700;color:var(--text);text-al
 #addBand{width:100%;border:1.5px dashed var(--accent);color:var(--accent);font-weight:700;background:transparent;min-height:46px}
 #clearM{border:1.5px solid var(--neg);font-weight:700;min-height:46px}
 #cal{touch-action:pan-y;will-change:transform}
+
+/* ===== 給料の推移グラフ (2026-10-27 その6) ===== */
+#chart svg{width:100%;height:auto;display:block}
+#chart text{font-size:9px;fill:var(--sub)}
+#chart text.val{font-size:9.5px;font-weight:700;fill:var(--text)}
+#chart .nodata{color:var(--sub);font-size:.9rem;margin:4px 0}
 </style>
 </head>
 <body>
@@ -225,6 +231,7 @@ label[for="goalAmount"]{font-size:1rem;font-weight:700;color:var(--text);text-al
 </div>
 
 <div class="card" id="editor"></div>
+<div class="card" id="chartCard"><h2>給料の推移</h2><div id="chart"></div><p class="note" id="chartNote" style="margin-bottom:0"></p></div>
 </section>
 <section class="app-screen" id="goalScreen" hidden aria-label="目標給料">
 <div class="nav"><button id="goalPrev" aria-label="目標の前月">‹ 前月</button><b id="goalYM"></b><button id="goalNext" aria-label="目標の翌月">翌月 ›</button></div>
@@ -389,13 +396,25 @@ function renderEditor(){
   $("flag").onchange=e=>{if(e.target.checked)flags[sel]=true;else delete flags[sel];refresh(true)};
 }
 function lines(){shifts.forEach((x,i)=>{const l=$("line"+i);if(l){const c=calcShift(x);l.textContent=`${c.h.toFixed(2)}時間 ／ ${yen(c.p)}`}})}
+function renderChart(){
+  const el=$("chart");if(!el)return;
+  const months=[];for(let i=5;i>=0;i--){const d=new Date(view.y,view.m-i,1);months.push({y:d.getFullYear(),m:d.getMonth()})}
+  const vals=months.map(({y,m})=>{const pre=`${y}-${pad(m+1)}-`,L=shifts.filter(x=>x.d.startsWith(pre));let P=0;L.forEach(x=>P+=calcShift(x).p);return P+new Set(L.map(x=>x.d)).size*v("fare")});
+  if(vals.every(v=>v===0)){el.innerHTML='<p class="nodata">シフトを入れると、ここに過去6か月の給料の流れが出るよ</p>';$("chartNote").textContent="";return}
+  const W=320,H=118,pl=16,pr=16,pt=20,pb=22,M=Math.max(...vals);
+  const X=i=>pl+(W-pl-pr)*i/5,Y=v=>pt+(H-pt-pb)*(1-v/M);
+  const pts=vals.map((v,i)=>`${X(i)},${Y(v)}`).join(" ");
+  const fmt=v=>v>=10000?(Math.round(v/1000)/10)+"万":"¥"+Math.round(v).toLocaleString("ja-JP");
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="過去6か月の支給合計の折れ線グラフ"><polygon points="${pl},${H-pb} ${pts} ${W-pr},${H-pb}" fill="var(--accent)" opacity=".12"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${vals.map((v,i)=>`<circle cx="${X(i)}" cy="${Y(v)}" r="${i===5?4:3}" fill="var(--accent)"/><text class="val" x="${X(i)}" y="${Y(v)-8}" text-anchor="middle">${fmt(v)}</text><text x="${X(i)}" y="${H-6}" text-anchor="middle">${months[i].m+1}月</text>`).join("")}</svg>`;
+  $("chartNote").textContent=`${months[0].y}年${months[0].m+1}月〜${months[5].y}年${months[5].m+1}月の支給合計（給料＋交通費）`;
+}
 function totals(){
   const L=shifts.filter(inMonth);let H=0,P=0;L.forEach(x=>{const c=calcShift(x);H+=c.h;P+=c.p});
   $("goalYM").textContent=`${view.y}年${view.m+1}月`;
   $("manageMonth").textContent=`削除対象：${view.y}年${view.m+1}月（カレンダー・目標給料で月を変更できます）`;
   $("mlabel").textContent=`${view.y}年${view.m+1}月の合計`;
   const D=new Set(L.map(x=>x.d)).size,F=D*v("fare");$("td").textContent=D+"日";$("th").textContent=H.toFixed(1)+"h";$("tp").textContent=yen(P+F);$("brk").textContent=`給料 ${yen(P)} ＋ 交通費 ${yen(F)}`;
-  renderPlanner(P+F);lines();save();
+  renderPlanner(P+F);renderChart();lines();save();
 }
 function refresh(editor){renderCal();if(editor)renderEditor();totals()}
 
