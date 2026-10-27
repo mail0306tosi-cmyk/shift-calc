@@ -150,6 +150,16 @@ body[data-screen="calendar"] main{padding-bottom:calc(160px + env(safe-area-inse
 #goalPercent{font-weight:700}
 #goalStatus{font-size:1rem;margin:6px 0 2px}
 #goalEstimate{margin:2px 0 6px;font-weight:600}
+
+/* ===== 目標給料をシンプルに (2026-10-27 その4) ===== */
+/* 説明文で分からせるんじゃなく、目標金額の入力欄をドンと大きく置く */
+.planner-grid{grid-template-columns:1fr;gap:10px}
+label[for="goalAmount"]{font-size:1rem;font-weight:700;color:var(--text);text-align:center}
+#goalAmount{font-size:2rem;font-weight:800;text-align:center;min-height:68px;border:2px solid var(--accent);border-radius:14px;background:var(--input)}
+#goalAmount::placeholder{font-size:1.1rem;font-weight:600;color:var(--sub)}
+.planner-grid>div:last-child{display:flex;align-items:center;gap:10px}
+.planner-grid>div:last-child label{margin:0;white-space:nowrap}
+.planner-grid>div:last-child input{width:110px;flex:none;text-align:center}
 </style>
 </head>
 <body>
@@ -207,15 +217,11 @@ body[data-screen="calendar"] main{padding-bottom:calc(160px + env(safe-area-inse
 <div class="nav"><button id="goalPrev" aria-label="目標の前月">‹ 前月</button><b id="goalYM"></b><button id="goalNext" aria-label="目標の翌月">翌月 ›</button></div>
 <section class="card" id="planner" aria-labelledby="plannerTitle">
 <h2 id="plannerTitle">今月の目標給料</h2>
-<p class="goal-intro">目標金額を入れるだけで、<b>あといくら足りないか</b>と<b>あと何日シフトに入れば届くか</b>が分かるよ。カレンダーに入れたシフトから自動で計算してる。</p>
 <p class="note" id="goalMonth"></p>
-<h3 class="step">① 目標を決める</h3>
 <div class="planner-grid">
 <div><label for="goalAmount">月間目標支給額（円）</label><input id="goalAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="例：100000"></div>
-<div><label for="goalDaily">1日の希望実働時間</label><input id="goalDaily" type="number" min="0.1" max="24" step="0.5" inputmode="decimal" value="5"><p class="note mini">「あと何日入ればいいか」の計算に使うよ</p></div>
+<div><label for="goalDaily">1日の希望実働時間</label><input id="goalDaily" type="number" min="0.1" max="24" step="0.5" inputmode="decimal" value="5"></div>
 </div>
-<p class="note">税金・控除前の支給額（交通費を含む）が目標です。月ごとに自動保存します。</p>
-<h3 class="step">② あとどれくらい？</h3>
 <div class="planner-stats" aria-live="polite">
 <p id="goalCurrent"></p>
 <label for="goalProgress" id="goalPercent">目標達成率</label>
@@ -223,7 +229,6 @@ body[data-screen="calendar"] main{padding-bottom:calc(160px + env(safe-area-inse
 <p id="goalStatus"></p>
 <p id="goalEstimate"></p>
 </div>
-<p class="note">追加勤務の逆算は基本時給のみを使った概算です。交通費・深夜・土日祝の割増は含みません。実働時間に休憩は含みません。</p>
 </section></section>
 
 <div class="card app-screen" id="aiScreen">
