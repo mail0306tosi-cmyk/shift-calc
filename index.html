@@ -294,7 +294,7 @@ const $=id=>document.getElementById(id),v=id=>parseFloat($(id).value)||0;
 const yen=n=>"¥"+Math.round(n).toLocaleString("ja-JP");
 const pad=n=>String(n).padStart(2,"0"),keyOf=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
 const WD=["日","月","火","水","木","金","土"],ISO=/^\d{4}-\d\d-\d\d$/;
-let bands=[{s:"22:00",e:"05:00",r:1875}],shifts=[],last={s:"09:00",e:"17:00",b:60},sel=null,flags={};
+let bands=[{s:"22:00",e:"05:00",r:1875}],shifts=[],last={s:"09:00",e:"17:00",b:60,m:1},sel=null,flags={};
 const now=new Date();let view={y:now.getFullYear(),m:now.getMonth()};
 try{const j=JSON.parse(localStorage.getItem("shiftcalc2")||"null");if(j){bands=j.bands||bands;shifts=(j.shifts||[]).filter(x=>ISO.test(x.d));last=j.last||last;$("base").value=j.base||1500;for(const k of ["p_sat","p_sun","p_hol","fare","meal"])if(j[k]!=null)$(k).value=j[k];flags=j.flags||{}}}catch(e){}
 const save=()=>{try{localStorage.setItem("shiftcalc2",JSON.stringify({bands,shifts,last,flags,base:v("base"),p_sat:v("p_sat"),p_sun:v("p_sun"),p_hol:v("p_hol"),fare:v("fare"),meal:v("meal")}))}catch(e){}};
@@ -394,21 +394,23 @@ function renderCal(){
 function renderEditor(){
   if(!sel){$("editor").innerHTML='<p class="note" style="margin:0">カレンダーの日付をタップすると、ここでシフトを編集できます。</p>';return}
   const [y,m,d]=sel.split("-").map(Number),dow=WD[new Date(y,m-1,d).getDay()];
-  const rows=shifts.map((x,i)=>x.d===sel?`<div class="grid" style="margin-bottom:6px">
+  const rows=shifts.map((x,i)=>x.d===sel?`<div class="grid" style="margin-bottom:6px;grid-template-columns:1fr 1fr 1fr 1fr auto">
   <div><label>開始</label><input type="time" data-k="shifts" data-i="${i}" data-f="s" value="${x.s}"></div>
   <div><label>終了</label><input type="time" data-k="shifts" data-i="${i}" data-f="e" value="${x.e}"></div>
   <div><label>休憩(分)</label><input type="number" data-k="shifts" data-i="${i}" data-f="b" value="${x.b||0}"></div>
+  <div><label>まかない(回)</label><input type="number" min="0" max="9" step="1" data-k="shifts" data-i="${i}" data-f="m" value="${x.m==null?1:x.m}"></div>
   <button class="x" data-del="shifts" data-i="${i}">削除</button>
   <div class="note" style="grid-column:1/-1" id="line${i}"></div></div>`:"").join("");
   $("editor").innerHTML=`<h2>${m}月${d}日(${dow})のシフト${hols(y).has(sel)?" ・祝日":""}</h2>${rows||'<p class="note">シフトはありません。</p>'}<label class="chk" style="margin-top:10px"><input type="checkbox" id="flag" ${flags[sel]?"checked":""}> この日を祝日扱いにする(祝日割増を適用)</label>${premium(sel)?`<p class="note">この日は時給に +${yen(premium(sel))} が加算されます。</p>`:""}<div class="row"><button id="addOne">＋ シフトを追加</button></div>`;
   $("addOne").onclick=()=>{shifts.push({d:sel,...last});refresh(true)};
   $("flag").onchange=e=>{if(e.target.checked)flags[sel]=true;else delete flags[sel];refresh(true)};
 }
+function mealCnt(x){return x.m==null?1:Math.max(0,+x.m||0)}
 function lines(){shifts.forEach((x,i)=>{const l=$("line"+i);if(l){const c=calcShift(x);l.textContent=`${c.h.toFixed(2)}時間 ／ ${yen(c.p)}`}})}
 function renderChart(){
   const el=$("chart");if(!el)return;
   const months=[];for(let i=5;i>=0;i--){const d=new Date(view.y,view.m-i,1);months.push({y:d.getFullYear(),m:d.getMonth()})}
-  const vals=months.map(({y,m})=>{const pre=`${y}-${pad(m+1)}-`,L=shifts.filter(x=>x.d.startsWith(pre));let P=0;L.forEach(x=>P+=calcShift(x).p);const D=new Set(L.map(x=>x.d)).size;return P+D*v("fare")-D*v("meal")});
+  const vals=months.map(({y,m})=>{const pre=`${y}-${pad(m+1)}-`,L=shifts.filter(x=>x.d.startsWith(pre));let P=0;L.forEach(x=>P+=calcShift(x).p);const D=new Set(L.map(x=>x.d)).size,MC=L.reduce((a,x)=>a+mealCnt(x),0);return P+D*v("fare")-MC*v("meal")});
   if(vals.every(v=>v===0)){el.innerHTML='<p class="nodata">シフトを入れると、ここに過去6か月の給料の流れが出るよ</p>';$("chartNote").textContent="";return}
   const W=320,H=118,pl=16,pr=16,pt=20,pb=22,M=Math.max(...vals);
   const X=i=>pl+(W-pl-pr)*i/5,Y=v=>pt+(H-pt-pb)*(1-v/M);
@@ -422,7 +424,7 @@ function totals(){
   $("goalYM").textContent=`${view.y}年${view.m+1}月`;
   $("manageMonth").textContent=`削除対象：${view.y}年${view.m+1}月（カレンダー・目標給料で月を変更できます）`;
   $("mlabel").textContent=`${view.y}年${view.m+1}月の合計`;
-  const D=new Set(L.map(x=>x.d)).size,F=D*v("fare"),M=D*v("meal");$("td").textContent=D+"日";$("th").textContent=H.toFixed(1)+"h";$("tp").textContent=yen(P+F-M);$("brk").textContent=`給料 ${yen(P)} ＋ 交通費 ${yen(F)}`+(M>0?` － まかない ${yen(M)}`:"");
+  const D=new Set(L.map(x=>x.d)).size,F=D*v("fare"),M=L.reduce((a,x)=>a+mealCnt(x),0)*v("meal");$("td").textContent=D+"日";$("th").textContent=H.toFixed(1)+"h";$("tp").textContent=yen(P+F-M);$("brk").textContent=`給料 ${yen(P)} ＋ 交通費 ${yen(F)}`+(M>0?` － まかない ${yen(M)}`:"");
   renderPlanner(P+F-M);renderChart();lines();save();
 }
 function refresh(editor){renderCal();if(editor)renderEditor();totals()}
@@ -432,7 +434,7 @@ document.addEventListener("input",e=>{
   if(t.id==="goalAmount"||t.id==="goalDaily")saveGoal();
   if(k){const o=(k==="bands"?bands:shifts)[+t.dataset.i],f=t.dataset.f;
     o[f]=t.type==="number"?(parseFloat(t.value)||0):t.value;
-    if(k==="shifts"&&o.s&&o.e)last={s:o.s,e:o.e,b:+o.b||0};}
+    if(k==="shifts"&&o.s&&o.e)last={s:o.s,e:o.e,b:+o.b||0,m:o.m==null?1:(+o.m||0)};}
   renderCal();totals();
 });
 document.addEventListener("click",e=>{
